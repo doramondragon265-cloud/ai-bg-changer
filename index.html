@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AI Background Remover & Changer</title>
+  <!-- Google MediaPipe Selfie Segmentation -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 { margin: 5px 0; font-size: 22px; text-align: center; }
+    p { color: #94a3b8; margin: 0 0 15px 0; font-size: 13px; text-align: center; }
+    .controls {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      max-width: 850px;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1 1 240px;
+    }
+    label { font-size: 13px; font-weight: bold; color: #cbd5e1; }
+    input[type="file"], input[type="range"] {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: white;
+      width: 100%;
+      font-size: 14px;
+    }
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    input[type="color"] {
+      width: 40px;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      background: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #475569;
+      cursor: pointer;
+      padding: 0;
+    }
+    .transparent-btn {
+      background: repeating-conic-gradient(#64748b 0% 25%, #1e293b 0% 50%) 50% / 10px 10px;
+    }
+    button.download-btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 16px;
+      padding: 14px;
+      width: 100%;
+      cursor: pointer;
+    }
+    button.download-btn:active { background: #2563eb; transform: scale(0.99); }
+    button.download-btn:disabled { background: #475569; cursor: not-allowed; }
+    #status {
+      color: #38bdf8;
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 12px;
+      min-height: 20px;
+      text-align: center;
+    }
+    .canvas-box {
+      border: 2px dashed #475569;
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 100%;
+      background-image: linear-gradient(45deg, #1e293b 25%, transparent 25%),
+                        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+                        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 65vh;
+      height: auto;
+      touch-action: none; /* Mobile par drag karte waqt screen scroll nahi hogi */
+      cursor: grab;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>AI Background Remover & Changer</h2>
+  <p>1. Selfie upload karein &bull; 2. Color ya Photo background chunein &bull; 3. Download karein</p>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>1. Upload Selfie (Background Hatega):</label>
+      <input type="file" id="selfieInput" accept="image/*" />
+    </div>
+
+    <div class="control-group">
+      <label>2A. Background Color Chunein:</label>
+      <div class="color-row">
+        <button class="swatch transparent-btn" id="transparentBtn" title="Transparent"></button>
+        <button class="swatch" style="background:#ffffff;" data-color="#ffffff" title="White"></button>
+        <button class="swatch" style="background:#000000;" data-color="#000000" title="Black"></button>
+        <button class="swatch" style="background:#2563eb;" data-color="#2563eb" title="Blue"></button>
+        <button class="swatch" style="background:#dc2626;" data-color="#dc2626" title="Red"></button>
+        <button class="swatch" style="background:#facc15;" data-color="#facc15" title="Yellow"></button>
+        <input type="color" id="colorPicker" value="#2563eb" title="Custom Color" />
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>2B. Ya Background Photo Lagayein:</label>
+      <input type="file" id="bgInput" accept="image/*" />
+    </div>
+
+    <div class="control-group">
+      <label>Selfie Size (Zoom): <span id="scaleVal">100%</span></label>
+      <input type="range" id="scaleSlider" min="20" max="200" value="100" />
+    </div>
+
+    <div class="control-group">
+      <label>Background Photo Blur: <span id="blurVal">0px</span></label>
+      <input type="range" id="blurSlider" min="0" max="20" value="0" />
+    </div>
+
+    <div class="control-group" style="justify-content: flex-end;">
+      <button class="download-btn" id="downloadBtn" disabled>Download Final Photo (PNG)</button>
+    </div>
+  </div>
+
+  <div id="status">Step 1: Apni selfie select karein...</div>
+
+  <div class="canvas-box">
+    <canvas id="canvas" width="600" height="400"></canvas>
+  </div>
+
+  <script>
+    const selfieInput = document.getElementById('selfieInput');
+    const bgInput = document.getElementById('bgInput');
+    const colorPicker = document.getElementById('colorPicker');
+    const transparentBtn = document.getElementById('transparentBtn');
+    const swatches = document.querySelectorAll('.swatch[data-color]');
+    const scaleSlider = document.getElementById('scaleSlider');
+    const blurSlider = document.getElementById('blurSlider');
+    const scaleVal = document.getElementById('scaleVal');
+    const blurVal = document.getElementById('blurVal');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusText = document.getElementById('status');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let cutoutCanvas = null;
+    let bgType = 'transparent';
+    let bgColor = '#2563eb';
+    let bgImg = null;
+    let posX = 0, posY = 0;
+    let isDragging = false, offsetX = 0, offsetY = 0;
+
+    // Google MediaPipe AI Setup
+    const selfieSegmentation = new SelfieSegmentation({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+    });
+    selfieSegmentation.setOptions({ modelSelection: 1 });
+
+    selfieSegmentation.onResults((results) => {
+      cutoutCanvas = document.createElement('canvas');
+      cutoutCanvas.width = results.image.width;
+      cutoutCanvas.height = results.image.height;
+      const cCtx = cutoutCanvas.getContext('2d');
+
+      cCtx.save();
+      cCtx.filter = 'blur(1.5px)';
+      cCtx.drawImage(results.segmentationMask, 0, 0, cutoutCanvas.width, cutoutCanvas.height);
+      cCtx.restore();
+
+      cCtx.globalCompositeOperation = 'source-in';
+      cCtx.drawImage(results.image, 0, 0, cutoutCanvas.width, cutoutCanvas.height);
+
+      if (bgType !== 'image') {
+        canvas.width = cutoutCanvas.width;
+        canvas.height = cutoutCanvas.height;
+      }
+      posX = (canvas.width - cutoutCanvas.width) / 2;
+      posY = (canvas.height - cutoutCanvas.height) / 2;
+
+      renderCanvas();
+      statusText.textContent = "Background hat gaya! Ungli ya mouse se selfie move karein.";
+      downloadBtn.disabled = false;
+    });
+
+    // 1. Selfie Upload (Mobile camera/gallery optimized)
+    selfieInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      statusText.textContent = "AI background remove kar raha hai...";
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = async () => {
+          // Mobile phone ki heavy photos ko resize karke fast process karein
+          const maxDim = 1280;
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = w;
+          tempCanvas.height = h;
+          tempCanvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+          try {
+            await selfieSegmentation.send({ image: tempCanvas });
+          } catch (err) {
+            console.error(err);
+            statusText.textContent = "Error: Internet connection check karein.";
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 2A. Background Color Controls
+    transparentBtn.addEventListener('click', () => { bgType = 'transparent'; renderCanvas(); });
+    swatches.forEach(btn => {
+      btn.addEventListener('click', () => {
+        bgType = 'color';
+        bgColor = btn.dataset.color;
+        colorPicker.value = bgColor;
+        renderCanvas();
+      });
+    });
+    colorPicker.addEventListener('input', (e) => {
+      bgType = 'color';
+      bgColor = e.target.value;
+      renderCanvas();
+    });
+
+    // 2B. Background Photo Upload
+    bgInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          bgImg = img;
+          bgType = 'image';
+          canvas.width = img.width;
+          canvas.height = img.height;
+          if (cutoutCanvas) {
+            const scale = scaleSlider.value / 100;
+            posX = (canvas.width - cutoutCanvas.width * scale) / 2;
+            posY = canvas.height - cutoutCanvas.height * scale;
+          }
+          renderCanvas();
+          statusText.textContent = "Naya background lag gaya! Selfie ko drag karke set karein.";
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 3. Draw Canvas
+    function renderCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (bgType === 'color') {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (bgType === 'image' && bgImg) {
+        ctx.save();
+        ctx.filter = `blur(${blurSlider.value}px)`;
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+
+      if (cutoutCanvas) {
+        const scale = scaleSlider.value / 100;
+        const w = cutoutCanvas.width * scale;
+        const h = cutoutCanvas.height * scale;
+        ctx.drawImage(cutoutCanvas, posX, posY, w, h);
+      }
+    }
+
+    scaleSlider.addEventListener('input', () => {
+      scaleVal.textContent = scaleSlider.value + "%";
+      renderCanvas();
+    });
+
+    blurSlider.addEventListener('input', () => {
+      blurVal.textContent = blurSlider.value + "px";
+      renderCanvas();
+    });
+
+    // Laptop Mouse Drag
+    canvas.addEventListener('mousedown', (e) => {
+      if (!cutoutCanvas) return;
+      isDragging = true;
+      const rect = canvas.getBoundingClientRect();
+      offsetX = (e.clientX - rect.left) * (canvas.width / rect.width) - posX;
+      offsetY = (e.clientY - rect.top) * (canvas.height / rect.height) - posY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const rect = canvas.getBoundingClientRect();
+      posX = (e.clientX - rect.left) * (canvas.width / rect.width) - offsetX;
+      posY = (e.clientY - rect.top) * (canvas.height / rect.height) - offsetY;
+      renderCanvas();
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    // Mobile Touch Drag
+    canvas.addEventListener('touchstart', (e) => {
+      if (!cutoutCanvas) return;
+      e.preventDefault();
+      isDragging = true;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      offsetX = (touch.clientX - rect.left) * (canvas.width / rect.width) - posX;
+      offsetY = (touch.clientY - rect.top) * (canvas.height / rect.height) - posY;
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      posX = (touch.clientX - rect.left) * (canvas.width / rect.width) - offsetX;
+      posY = (touch.clientY - rect.top) * (canvas.height / rect.height) - offsetY;
+      renderCanvas();
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => { isDragging = false; });
+
+    // 4. Download Final Image
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'edited-photo.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+
+</body>
+</html>
