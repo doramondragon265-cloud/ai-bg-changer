@@ -150,7 +150,7 @@
     canvas {
       display: block;
       max-width: 100%;
-      max-height: 72vh; /* Full 9:16 vertical screen support */
+      max-height: 72vh;
       width: auto;
       height: auto;
       touch-action: none;
@@ -330,12 +330,12 @@
       </div>
     </div>
 
-    <!-- 3. Full-Screen Aspect Ratio & Frame Shape Panel -->
+    <!-- 3. Full-Screen Aspect Ratio, Shape & Background Changer (Combined Together) -->
     <div class="panel">
-      <div class="panel-title">Full-Screen Aspect Ratio & Shape (Square / Round / Triangle)</div>
+      <div class="panel-title">Full-Screen Aspect Ratio, Shape & Background Changer</div>
 
       <div class="group" style="flex: 2 1 360px;">
-        <label>Aspect Ratio Chunein (Full Screen Auto-Fill):</label>
+        <label>Aspect Ratio (Full Screen Auto-Fill):</label>
         <div class="chip-row" id="ratioGroup">
           <button class="chip-btn active" data-ratio="auto">Auto</button>
           <button class="chip-btn" data-ratio="9:16">9:16</button>
@@ -356,12 +356,37 @@
       </div>
 
       <div class="group" style="flex: 1 1 240px;">
-        <label>Frame Shape Chunein:</label>
+        <label>Frame Shape:</label>
         <div class="chip-row" id="shapeGroup">
           <button class="chip-btn active" data-shape="square">Square / Rect</button>
           <button class="chip-btn" data-shape="round">Round (Circle)</button>
           <button class="chip-btn" data-shape="triangle">Triangle</button>
         </div>
+      </div>
+
+      <!-- Background Changer Controls Placed Directly Here -->
+      <div class="group" style="flex: 1 1 260px;">
+        <label>Background Color / Original:</label>
+        <div class="color-row">
+          <button class="swatch transparent-btn" id="transparentBtn" title="Transparent"></button>
+          <button class="swatch" id="origBgBtn" style="background:#334155;" title="Original Background">ORIG</button>
+          <button class="swatch" style="background:#ffffff;" data-color="#ffffff" title="White"></button>
+          <button class="swatch" style="background:#000000;" data-color="#000000" title="Black"></button>
+          <button class="swatch" style="background:#2563eb;" data-color="#2563eb" title="Blue"></button>
+          <button class="swatch" style="background:#dc2626;" data-color="#dc2626" title="Red"></button>
+          <button class="swatch" style="background:#facc15;" data-color="#facc15" title="Yellow"></button>
+          <input type="color" id="colorPicker" value="#2563eb" title="Custom Color" />
+        </div>
+      </div>
+
+      <div class="group" style="flex: 1 1 230px;">
+        <label>Upload Custom Background Photo:</label>
+        <input type="file" id="bgInput" accept="image/*" />
+      </div>
+
+      <div class="group" style="flex: 1 1 180px;">
+        <label>Background Blur: <span id="blurVal">0px</span></label>
+        <input type="range" id="blurSlider" min="0" max="20" value="0" />
       </div>
     </div>
 
@@ -532,34 +557,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 7. Background Changer Panel -->
-    <div class="panel">
-      <div class="panel-title">Background Changer (Color / Photo / Blur)</div>
-      <div class="group">
-        <label>Background Color / Original:</label>
-        <div class="color-row">
-          <button class="swatch transparent-btn" id="transparentBtn" title="Transparent"></button>
-          <button class="swatch" id="origBgBtn" style="background:#334155;" title="Original Background">ORIG</button>
-          <button class="swatch" style="background:#ffffff;" data-color="#ffffff" title="White"></button>
-          <button class="swatch" style="background:#000000;" data-color="#000000" title="Black"></button>
-          <button class="swatch" style="background:#2563eb;" data-color="#2563eb" title="Blue"></button>
-          <button class="swatch" style="background:#dc2626;" data-color="#dc2626" title="Red"></button>
-          <button class="swatch" style="background:#facc15;" data-color="#facc15" title="Yellow"></button>
-          <input type="color" id="colorPicker" value="#2563eb" title="Custom Color" />
-        </div>
-      </div>
-
-      <div class="group">
-        <label>Upload Custom Background Photo:</label>
-        <input type="file" id="bgInput" accept="image/*" />
-      </div>
-
-      <div class="group">
-        <label>Background Blur: <span id="blurVal">0px</span></label>
-        <input type="range" id="blurSlider" min="0" max="20" value="0" />
-      </div>
-    </div>
   </div>
 
   <footer>
@@ -601,7 +598,6 @@
     const outlineSize = document.getElementById('outlineSize');
     const outlineColor = document.getElementById('outlineColor');
 
-    // Text & Keyframes
     const customText = document.getElementById('customText');
     const textKeyframeMode = document.getElementById('textKeyframeMode');
     const kfSpeedSlider = document.getElementById('kfSpeedSlider');
@@ -633,7 +629,7 @@
     let aiMode = 'person';
     let currentRatio = 'auto';
     let currentShape = 'square';
-    let fitMode = 'cover'; // 'cover' (Full Screen) or 'contain' (Fit Inside)
+    let fitMode = 'cover';
 
     let originalSourceCanvas = null;
     let cutoutCanvas = null;
@@ -700,7 +696,7 @@
       }
 
       cutoutCanvas = tempC;
-      statusText.textContent = "Ready! 9:16 full-screen ratio, keyframes, aur filters try karein.";
+      statusText.textContent = "Ready! Ratio, Shape, aur Background neeche ek hi panel mein set karein.";
       finishCutout();
     });
 
@@ -767,7 +763,6 @@
       finishCutout();
     }
 
-    // Full-Screen Aspect Ratio & Cover/Contain Logic
     function applyAspectRatio() {
       let baseW = 720, baseH = 1280;
       if (currentRatio === 'auto') {
@@ -798,10 +793,8 @@
         if (currentRatio === 'auto') {
           targetScale = 1.0;
         } else if (fitMode === 'cover') {
-          // Full Screen 9:16 Cover Fill
           targetScale = Math.max(baseW / cutoutCanvas.width, baseH / cutoutCanvas.height);
         } else {
-          // Fit Inside
           targetScale = Math.min(baseW / cutoutCanvas.width, baseH / cutoutCanvas.height);
         }
 
@@ -835,7 +828,6 @@
       exportVideoBtn.disabled = false;
     }
 
-    // Ratio, Fit Mode & Shape Listeners
     ratioBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         ratioBtns.forEach(b => b.classList.remove('active'));
@@ -868,7 +860,6 @@
       });
     });
 
-    // Keyframe Button Listeners
     setStartKfBtn.addEventListener('click', () => {
       kfStart = { x: textX, y: textY, scale: 0.85 };
       textKeyframeMode.value = 'custom';
@@ -1023,7 +1014,6 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       ctx.save();
-      // Shape Clipping (Round / Triangle / Square)
       if (currentShape === 'round') {
         const radius = Math.min(canvas.width, canvas.height) / 2;
         ctx.beginPath();
@@ -1039,7 +1029,7 @@
         ctx.clip();
       }
 
-      // 1. Background Layer (Full Canvas Cover)
+      // 1. Background Layer
       if (bgType === 'original' && originalSourceCanvas) {
         ctx.save();
         ctx.filter = `blur(${blurSlider.value}px)`;
@@ -1160,7 +1150,7 @@
         const kfMode = textKeyframeMode.value;
         const speed = parseFloat(kfSpeedSlider.value);
         const t = (animTime * speed) % (Math.PI * 2);
-        const pingPong = (1 - Math.cos(t)) / 2; // Smooth ease 0 -> 1 -> 0
+        const pingPong = (1 - Math.cos(t)) / 2;
 
         let drawX = textX;
         let drawY = textY;
@@ -1199,7 +1189,7 @@
         ctx.restore();
       }
 
-      ctx.restore(); // End Shape Clipping
+      ctx.restore();
     }
 
     animationLoop();
